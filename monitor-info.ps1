@@ -1,3 +1,4 @@
+# Monitor Information Collector
 $ErrorActionPreference = 'Stop'
 
 function Test-PythonInstallation {
@@ -11,90 +12,116 @@ function Test-PythonInstallation {
 }
 
 function Install-Python {
-    Write-Host "Python is required but not detected. Attempting to install..." -ForegroundColor Yellow
+    Write-Host "Python is not installed. Attempting to download and install..." -ForegroundColor Yellow
+    
     try {
+        # Uses winget to install Python
         winget install -e --id Python.Python.3.12 --silent
+        
+        # Refresh environment variables
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+        
         Write-Host "Python installed successfully." -ForegroundColor Green
     }
     catch {
-        Write-Host "Failed to install Python. Please install manually from https://www.python.org/downloads/" -ForegroundColor Red
+        Write-Host "Failed to install Python. Please download and install from python.org manually." -ForegroundColor Red
         Start-Process "https://www.python.org/downloads/"
         throw
     }
 }
 
-function Install-RequiredPackages {
-    Write-Host "Upgrading pip first..." -ForegroundColor Yellow
-    python -m pip install --upgrade pip
-
-    $packages = @(
-        "psutil",
-        "wmi",
-        "GPUtil",
-        "screeninfo",
-        "pywin32"
-    )
-
-    foreach ($package in $packages) {
-        try {
-            Write-Host "Installing $package..." -ForegroundColor Yellow
-            # Try with --user flag first
-            $result = python -m pip install --user $package 2>&1 | Out-String
-            if ($LASTEXITCODE -ne 0) {
-                # If --user fails, try with admin rights
-                Write-Host "Retrying with administrator privileges..." -ForegroundColor Yellow
-                Start-Process -FilePath "python" -ArgumentList "-m pip install $package" -Verb RunAs -Wait
-            }
-            Write-Host "Successfully installed $package" -ForegroundColor Green
-        }
-        catch {
-            Write-Host "Package installation failed for $package" -ForegroundColor Red
-            Write-Host $_.Exception.Message -ForegroundColor Red
-        }
-    }
-}
-
-function Get-SystemInformation {
-    $scriptUrl = "https://raw.githubusercontent.com/noctiskun/system-monitor/main/system_info.py"
+function Install-PythonPackages {
+    # First try to install psutil using wheel
     try {
-        $script = (Invoke-WebRequest -Uri $scriptUrl -UseBasicParsing).Content
-        $tempScriptPath = [System.IO.Path]::GetTempFileName() + ".py"
-        $script | Out-File -FilePath $tempScriptPath -Encoding utf8
-        $result = python $tempScriptPath | Out-String
-        return $result
+        Write-Host "Installing psutil..." -ForegroundColor Yellow
+        pip install psutil --only-binary :all:
+        Write-Host "Installed psutil successfully" -ForegroundColor Green
     }
     catch {
-        Write-Host "Failed to collect system information" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
-        return $null
+        Write-Host "Failed to install psutil. Trying alternative method..." -ForegroundColor Yellow
+        try {
+            pip install --no-cache-dir --no-deps psutil
+            Write-Host "Installed psutil successfully using alternative method" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Failed to install psutil. Error: $_" -ForegroundColor Red
+        }
     }
-    finally {
-        if (Test-Path $tempScriptPath) {
-            Remove-Item $tempScriptPath -Force
+
+    # Install other packages
+    $requiredPackages = @(
+        "wmi",
+        "py-cpuinfo", 
+        "GPUtil", 
+        "screeninfo", 
+        "pywin32"
+    )
+    foreach ($package in $requiredPackages) {
+        try {
+            pip install $package
+            Write-Host "Installed $package successfully" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Failed to install $package. Error: $_" -ForegroundColor Red
         }
     }
 }
 
-try {
+function Get-SystemInfo {
+    # Fixed URL for the system_info.py script
+    $scriptUrl = "https://raw.githubusercontent.com/noctiskun/system-monitor/main/system_info.py"
+    
+    $tempScriptPath = "$env:TEMP\system_info.py"
+    
+    try {
+        # Download the script
+        Invoke-WebRequest -Uri $scriptUrl -OutFile $tempScriptPath
+        
+        # Run the Python script and capture output
+        $systemInfo = python $tempScriptPath | ConvertFrom-Json
+        
+        # Remove temporary script
+        Remove-Item $tempScriptPath -ErrorAction SilentlyContinue
+        
+        return $systemInfo
+    }
+    catch {
+        Write-Host "Failed to retrieve system information: $_" -ForegroundColor Red
+        return $null
+    }
+}
+
+function Export-SystemInfoToClipboard {
+    Write-Host "System Monitor Information Collector" -ForegroundColor Cyan
+    Write-Host "-----------------------------------" -ForegroundColor Cyan
+    
+    # Ensure Python is installed
     if (-not (Test-PythonInstallation)) {
+        Write-Host "Python not detected. Attempting installation..." -ForegroundColor Yellow
         Install-Python
     }
-
-    # Upgrade pip first
-    Write-Host "Checking pip version..." -ForegroundColor Yellow
-    python -m pip install --upgrade pip
-
-    Install-RequiredPackages
-
-    $systemInfo = Get-SystemInformation
+    
+    # Install required packages
+    Write-Host "Installing required Python packages..." -ForegroundColor Yellow
+    Install-PythonPackages
+    
+    # Collect and copy system info
+    Write-Host "Collecting system information..." -ForegroundColor Yellow
+    $systemInfo = Get-SystemInfo
+    
     if ($systemInfo) {
-        $systemInfo | Set-Clipboard
+        $jsonOutput = $systemInfo | ConvertTo-Json -Depth 10
+        $jsonOutput | Set-Clipboard
         Write-Host "`nSystem information has been copied to clipboard." -ForegroundColor Green
-        Write-Host $systemInfo
+        Write-Host "Please paste the copied information when prompted." -ForegroundColor Green
+        Write-Host "`nDetailed System Information:" -ForegroundColor Cyan
+        Write-Host $jsonOutput
+        return $jsonOutput
+    }
+    else {
+        Write-Host "Failed to collect system information." -ForegroundColor Red
     }
 }
-catch {
-    Write-Host "Script execution failed" -ForegroundColor Red
-    Write-Host $_.Exception.Message -ForegroundColor Red
-}
+
+# Run the export function
+Export-SystemInfoToClipboard
