@@ -35,17 +35,17 @@ function Install-RequiredPackages {
 
     foreach ($package in $packages) {
         try {
-            Write-Host "Installing $package..." -ForegroundColor Yellow
+            Write-Host "Installing ${package}..." -ForegroundColor Yellow
             $result = python -m pip install $package 2>&1 | Out-String
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "Error installing $package: $result" -ForegroundColor Red
+                Write-Host ("Error installing {0}: {1}" -f $package, $result) -ForegroundColor Red
             }
             else {
-                Write-Host "Successfully installed $package" -ForegroundColor Green
+                Write-Host "Successfully installed ${package}" -ForegroundColor Green
             }
         }
         catch {
-            Write-Host "Error installing $package: $($_.Exception.Message)" -ForegroundColor Red
+            Write-Host ("Error installing {0}: {1}" -f $package, $_.Exception.Message) -ForegroundColor Red
         }
     }
 }
@@ -60,7 +60,7 @@ function Get-SystemInformation {
         return $result
     }
     catch {
-        Write-Host "Error collecting system information: $($_.Exception.Message)" -ForegroundColor Red
+        Write-Host ("Error collecting system information: {0}" -f $_.Exception.Message) -ForegroundColor Red
         return $null
     }
     finally {
@@ -85,5 +85,5 @@ try {
     }
 }
 catch {
-    Write-Host "An error occurred during execution: $($_.Exception.Message)" -ForegroundColor Red
+    Write-Host ("An error occurred during execution: {0}" -f $_.Exception.Message) -ForegroundColor Red
 }
