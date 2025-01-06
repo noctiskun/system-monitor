@@ -25,6 +25,9 @@ function Install-Python {
 }
 
 function Install-RequiredPackages {
+    Write-Host "Upgrading pip first..." -ForegroundColor Yellow
+    python -m pip install --upgrade pip
+
     $packages = @(
         "psutil",
         "wmi",
@@ -36,14 +39,14 @@ function Install-RequiredPackages {
     foreach ($package in $packages) {
         try {
             Write-Host "Installing $package..." -ForegroundColor Yellow
-            $result = python -m pip install $package 2>&1 | Out-String
+            # Try with --user flag first
+            $result = python -m pip install --user $package 2>&1 | Out-String
             if ($LASTEXITCODE -ne 0) {
-                Write-Host "Failed to install package $package" -ForegroundColor Red
-                Write-Host $result -ForegroundColor Red
+                # If --user fails, try with admin rights
+                Write-Host "Retrying with administrator privileges..." -ForegroundColor Yellow
+                Start-Process -FilePath "python" -ArgumentList "-m pip install $package" -Verb RunAs -Wait
             }
-            else {
-                Write-Host "Successfully installed $package" -ForegroundColor Green
-            }
+            Write-Host "Successfully installed $package" -ForegroundColor Green
         }
         catch {
             Write-Host "Package installation failed for $package" -ForegroundColor Red
@@ -77,6 +80,10 @@ try {
     if (-not (Test-PythonInstallation)) {
         Install-Python
     }
+
+    # Upgrade pip first
+    Write-Host "Checking pip version..." -ForegroundColor Yellow
+    python -m pip install --upgrade pip
 
     Install-RequiredPackages
 
