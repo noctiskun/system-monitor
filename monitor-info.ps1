@@ -16,7 +16,7 @@ function Install-Python {
     
     try {
         # Uses winget to install Python
-        winget install -e --id Python.Python.3.12
+        winget install -e --id Python.Python.3.12 --silent
         
         # Refresh environment variables
         $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
@@ -24,7 +24,8 @@ function Install-Python {
         Write-Host "Python installed successfully." -ForegroundColor Green
     }
     catch {
-        Write-Host "Failed to install Python: $_" -ForegroundColor Red
+        Write-Host "Failed to install Python. Please download and install from python.org manually." -ForegroundColor Red
+        Start-Process "https://www.python.org/downloads/"
         throw
     }
 }
@@ -51,8 +52,8 @@ function Install-PythonPackages {
 }
 
 function Get-SystemInfo {
-    # Update this URL to the raw GitHub URL of your system_info.py
-    $scriptUrl = "https://raw.githubusercontent.com/[YOUR_GITHUB_USERNAME]/[YOUR_REPO_NAME]/main/system_info.py"
+    # Fixed URL for the system_info.py script
+    $scriptUrl = "https://raw.githubusercontent.com/noctiskun/system-monitor/main/system_info.py"
     
     $tempScriptPath = "$env:TEMP\system_info.py"
     
@@ -75,21 +76,29 @@ function Get-SystemInfo {
 }
 
 function Export-SystemInfoToClipboard {
+    Write-Host "System Monitor Information Collector" -ForegroundColor Cyan
+    Write-Host "-----------------------------------" -ForegroundColor Cyan
+    
     # Ensure Python is installed
     if (-not (Test-PythonInstallation)) {
+        Write-Host "Python not detected. Attempting installation..." -ForegroundColor Yellow
         Install-Python
     }
     
     # Install required packages
+    Write-Host "Installing required Python packages..." -ForegroundColor Yellow
     Install-PythonPackages
     
     # Collect and copy system info
+    Write-Host "Collecting system information..." -ForegroundColor Yellow
     $systemInfo = Get-SystemInfo
     
     if ($systemInfo) {
         $jsonOutput = $systemInfo | ConvertTo-Json -Depth 10
         $jsonOutput | Set-Clipboard
-        Write-Host "System information has been copied to clipboard:" -ForegroundColor Green
+        Write-Host "`nSystem information has been copied to clipboard." -ForegroundColor Green
+        Write-Host "Please paste the copied information when prompted." -ForegroundColor Green
+        Write-Host "`nDetailed System Information:" -ForegroundColor Cyan
         Write-Host $jsonOutput
         return $jsonOutput
     }
