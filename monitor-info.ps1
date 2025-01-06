@@ -36,7 +36,7 @@ function Install-RequiredPackages {
     foreach ($package in $packages) {
         try {
             Write-Host "Installing $package..." -ForegroundColor Yellow
-            $result = python -m pip install $package 2>&1
+            $result = python -m pip install $package 2>&1 | Out-String
             if ($LASTEXITCODE -ne 0) {
                 Write-Host "Error installing $package: $result" -ForegroundColor Red
             }
@@ -56,7 +56,7 @@ function Get-SystemInformation {
         $script = (Invoke-WebRequest -Uri $scriptUrl -UseBasicParsing).Content
         $tempScriptPath = [System.IO.Path]::GetTempFileName() + ".py"
         $script | Out-File -FilePath $tempScriptPath -Encoding utf8
-        $result = python $tempScriptPath
+        $result = python $tempScriptPath | Out-String
         return $result
     }
     catch {
