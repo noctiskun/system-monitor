@@ -31,7 +31,27 @@ function Install-Python {
 }
 
 function Install-PythonPackages {
-    # First try to install psutil using wheel
+    # Update pip first
+    try {
+        Write-Host "Updating pip..." -ForegroundColor Yellow
+        python -m pip install --upgrade pip
+        Write-Host "Pip updated successfully" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Failed to update pip. Continuing with installations..." -ForegroundColor Yellow
+    }
+
+    # Install setuptools first
+    try {
+        Write-Host "Installing setuptools..." -ForegroundColor Yellow
+        pip install setuptools
+        Write-Host "Installed setuptools successfully" -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Failed to install setuptools. Error: $_" -ForegroundColor Red
+    }
+
+    # Install psutil using wheel
     try {
         Write-Host "Installing psutil..." -ForegroundColor Yellow
         pip install psutil --only-binary :all:
@@ -52,7 +72,7 @@ function Install-PythonPackages {
     $requiredPackages = @(
         "wmi",
         "py-cpuinfo", 
-        "GPUtil", 
+        "GPUtil==1.4.0",
         "screeninfo", 
         "pywin32"
     )
@@ -68,9 +88,7 @@ function Install-PythonPackages {
 }
 
 function Get-SystemInfo {
-    # Fixed URL for the system_info.py script
     $scriptUrl = "https://raw.githubusercontent.com/noctiskun/system-monitor/main/system_info.py"
-    
     $tempScriptPath = "$env:TEMP\system_info.py"
     
     try {
