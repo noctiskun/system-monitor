@@ -54,12 +54,19 @@ function Get-SystemInformation {
     $scriptUrl = "https://raw.githubusercontent.com/noctiskun/system-monitor/main/system_info.py"
     try {
         $script = (Invoke-WebRequest -Uri $scriptUrl -UseBasicParsing).Content
-        $result = python -c $script
+        $tempScriptPath = [System.IO.Path]::GetTempFileName() + ".py"
+        $script | Out-File -FilePath $tempScriptPath -Encoding utf8
+        $result = python $tempScriptPath
         return $result
     }
     catch {
         Write-Host "Error collecting system information: $($_.Exception.Message)" -ForegroundColor Red
         return $null
+    }
+    finally {
+        if (Test-Path $tempScriptPath) {
+            Remove-Item $tempScriptPath -Force
+        }
     }
 }
 
