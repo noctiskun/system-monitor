@@ -36,8 +36,13 @@ function Install-RequiredPackages {
     foreach ($package in $packages) {
         try {
             Write-Host "Installing $package..." -ForegroundColor Yellow
-            python -m pip install $package
-            Write-Host "Successfully installed $package" -ForegroundColor Green
+            $result = python -m pip install $package 2>&1
+            if ($LASTEXITCODE -ne 0) {
+                Write-Host "Error installing $package: $result" -ForegroundColor Red
+            }
+            else {
+                Write-Host "Successfully installed $package" -ForegroundColor Green
+            }
         }
         catch {
             Write-Host "Error installing $package: $($_.Exception.Message)" -ForegroundColor Red
