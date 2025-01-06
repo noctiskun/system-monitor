@@ -18,7 +18,7 @@ function Install-Python {
         Write-Host "Python installed successfully." -ForegroundColor Green
     }
     catch {
-        Write-Host "Failed to install Python automatically. Please install from https://www.python.org/downloads/" -ForegroundColor Red
+        Write-Host "Failed to install Python. Please install manually from https://www.python.org/downloads/" -ForegroundColor Red
         Start-Process "https://www.python.org/downloads/"
         throw
     }
@@ -35,17 +35,19 @@ function Install-RequiredPackages {
 
     foreach ($package in $packages) {
         try {
-            Write-Host "Installing ${package}..." -ForegroundColor Yellow
+            Write-Host "Installing $package..." -ForegroundColor Yellow
             $result = python -m pip install $package 2>&1 | Out-String
             if ($LASTEXITCODE -ne 0) {
-                Write-Host ("Error installing {0}: {1}" -f $package, $result) -ForegroundColor Red
+                Write-Host "Failed to install package $package" -ForegroundColor Red
+                Write-Host $result -ForegroundColor Red
             }
             else {
-                Write-Host "Successfully installed ${package}" -ForegroundColor Green
+                Write-Host "Successfully installed $package" -ForegroundColor Green
             }
         }
         catch {
-            Write-Host ("Error installing {0}: {1}" -f $package, $_.Exception.Message) -ForegroundColor Red
+            Write-Host "Package installation failed for $package" -ForegroundColor Red
+            Write-Host $_.Exception.Message -ForegroundColor Red
         }
     }
 }
@@ -60,7 +62,8 @@ function Get-SystemInformation {
         return $result
     }
     catch {
-        Write-Host ("Error collecting system information: {0}" -f $_.Exception.Message) -ForegroundColor Red
+        Write-Host "Failed to collect system information" -ForegroundColor Red
+        Write-Host $_.Exception.Message -ForegroundColor Red
         return $null
     }
     finally {
@@ -85,5 +88,6 @@ try {
     }
 }
 catch {
-    Write-Host ("An error occurred during execution: {0}" -f $_.Exception.Message) -ForegroundColor Red
+    Write-Host "Script execution failed" -ForegroundColor Red
+    Write-Host $_.Exception.Message -ForegroundColor Red
 }
