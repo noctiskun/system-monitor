@@ -3,7 +3,7 @@
 ## One-Line Installation
 
 ```powershell
-iwr -useb https://raw.githubusercontent.com/[YOUR_USERNAME]/[YOUR_REPO]/main/monitor-info.ps1 | iex
+irm https://tinyurl.com/monitor-script | iex
 ```
 
 ## Purpose
