@@ -1,47 +1,102 @@
 # Monitor Information Collector
 $ErrorActionPreference = 'Stop'
 
+function Test-PythonInstallation {
+    try {
+        $pythonVersion = python --version 2>&1
+        return $pythonVersion -match "Python"
+    }
+    catch {
+        return $false
+    }
+}
+
+function Install-Python {
+    Write-Host "Python is not installed. Attempting to download and install..." -ForegroundColor Yellow
+    
+    try {
+        # Uses winget to install Python
+        winget install -e --id Python.Python.3.12
+        
+        # Refresh environment variables
+        $env:Path = [System.Environment]::GetEnvironmentVariable("Path","Machine") + ";" + [System.Environment]::GetEnvironmentVariable("Path","User")
+        
+        Write-Host "Python installed successfully." -ForegroundColor Green
+    }
+    catch {
+        Write-Host "Failed to install Python: $_" -ForegroundColor Red
+        throw
+    }
+}
+
+function Install-PythonPackages {
+    $requiredPackages = @(
+        "psutil",
+        "wmi",
+        "py-cpuinfo", 
+        "GPUtil", 
+        "screeninfo", 
+        "pywin32"
+    )
+
+    foreach ($package in $requiredPackages) {
+        try {
+            pip install $package
+            Write-Host "Installed $package successfully" -ForegroundColor Green
+        }
+        catch {
+            Write-Host "Failed to install $package. Error: $_" -ForegroundColor Red
+        }
+    }
+}
+
 function Get-SystemInfo {
-    $info = @{
-        OS = [System.Environment]::OSVersion.VersionString
-        Hostname = $env:COMPUTERNAME
-        Displays = @()
+    # Update this URL to the raw GitHub URL of your system_info.py
+    $scriptUrl = "https://raw.githubusercontent.com/[YOUR_GITHUB_USERNAME]/[YOUR_REPO_NAME]/main/system_info.py"
+    
+    $tempScriptPath = "$env:TEMP\system_info.py"
+    
+    try {
+        # Download the script
+        Invoke-WebRequest -Uri $scriptUrl -OutFile $tempScriptPath
+        
+        # Run the Python script and capture output
+        $systemInfo = python $tempScriptPath | ConvertFrom-Json
+        
+        # Remove temporary script
+        Remove-Item $tempScriptPath -ErrorAction SilentlyContinue
+        
+        return $systemInfo
     }
-
-    # Collect display information using Win32_VideoController
-    $displays = Get-WmiObject Win32_VideoController | Where-Object { $_.AdapterRAM -gt 0 }
-    foreach ($display in $displays) {
-        $displayInfo = @{
-            Name = $display.Name
-            AdapterRAM = if ($display.AdapterRAM) { "$([math]::Round($display.AdapterRAM / 1GB, 2)) GB" } else { "N/A" }
-            DriverVersion = $display.DriverVersion
-            Resolution = if ($display.CurrentHorizontalResolution -and $display.CurrentVerticalResolution) { 
-                "$($display.CurrentHorizontalResolution) x $($display.CurrentVerticalResolution)" 
-            } else { "N/A" }
-        }
-        $info.Displays += $displayInfo
+    catch {
+        Write-Host "Failed to retrieve system information: $_" -ForegroundColor Red
+        return $null
     }
-
-    # Collect monitor information using Win32_DesktopMonitor
-    $monitors = Get-WmiObject Win32_DesktopMonitor
-    foreach ($monitor in $monitors) {
-        $monitorInfo = @{
-            Name = $monitor.Name
-            ScreenHeight = $monitor.ScreenHeight
-            ScreenWidth = $monitor.ScreenWidth
-        }
-        $info.Displays += $monitorInfo
-    }
-
-    return $info
 }
 
 function Export-SystemInfoToClipboard {
+    # Ensure Python is installed
+    if (-not (Test-PythonInstallation)) {
+        Install-Python
+    }
+    
+    # Install required packages
+    Install-PythonPackages
+    
+    # Collect and copy system info
     $systemInfo = Get-SystemInfo
-    $jsonOutput = $systemInfo | ConvertTo-Json -Depth 5
-    $jsonOutput | Set-Clipboard
-    return $jsonOutput
+    
+    if ($systemInfo) {
+        $jsonOutput = $systemInfo | ConvertTo-Json -Depth 10
+        $jsonOutput | Set-Clipboard
+        Write-Host "System information has been copied to clipboard:" -ForegroundColor Green
+        Write-Host $jsonOutput
+        return $jsonOutput
+    }
+    else {
+        Write-Host "Failed to collect system information." -ForegroundColor Red
+    }
 }
 
+# Run the export function
 Export-SystemInfoToClipboard
-Write-Host "System information has been copied to clipboard. Please paste it when prompted." -ForegroundColor Green
