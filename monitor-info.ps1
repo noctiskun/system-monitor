@@ -20,7 +20,7 @@ function Install-Python {
     catch {
         Write-Host "Failed to install Python automatically. Please install from https://www.python.org/downloads/" -ForegroundColor Red
         Start-Process "https://www.python.org/downloads/"
-        throw "Python installation failed"
+        throw
     }
 }
 
@@ -40,8 +40,7 @@ function Install-RequiredPackages {
             Write-Host "Successfully installed $package" -ForegroundColor Green
         }
         catch {
-            Write-Host "Error installing $package" -ForegroundColor Red
-            Write-Host $_.Exception.Message -ForegroundColor Red
+            Write-Host "Error installing $package: $($_.Exception.Message)" -ForegroundColor Red
         }
     }
 }
@@ -54,8 +53,7 @@ function Get-SystemInformation {
         return $result
     }
     catch {
-        Write-Host "Error collecting system information" -ForegroundColor Red
-        Write-Host $_.Exception.Message -ForegroundColor Red
+        Write-Host "Error collecting system information: $($_.Exception.Message)" -ForegroundColor Red
         return $null
     }
 }
@@ -75,6 +73,5 @@ try {
     }
 }
 catch {
-    Write-Host "An error occurred during execution" -ForegroundColor Red
-    Write-Host $_.Exception.Message -ForegroundColor Red
+    Write-Host "An error occurred during execution: $($_.Exception.Message)" -ForegroundColor Red
 }
