@@ -140,16 +140,36 @@ def main():
         system_info = get_system_info()
         
         if system_info:
-            # Convert to JSON and copy to clipboard
+            # Convert to JSON
             json_output = json.dumps(system_info, indent=2)
-            root.clipboard_clear()
-            root.clipboard_append(json_output)
             
-            # Show success message with the information
-            messagebox.showinfo("Success", 
-                "System information has been collected and copied to clipboard.\n\n" +
-                "Please paste this information in the survey."
-            )
+            try:
+                # Try to copy to clipboard
+                root.clipboard_clear()
+                root.clipboard_append(json_output)
+                root.update()  # Required for clipboard to work
+                
+                # Verify clipboard content
+                clipboard_content = root.clipboard_get()
+                if clipboard_content:
+                    # Show success message with preview of the information
+                    messagebox.showinfo("Success", 
+                        "System information has been collected and copied to clipboard.\n\n" +
+                        "Preview of collected information:\n" +
+                        f"OS: {system_info['system']['os_version']}\n" +
+                        f"GPU: {', '.join(gpu['name'] for gpu in system_info['gpu'])}\n" +
+                        f"Displays: {len(system_info['displays'])} monitor(s)\n\n" +
+                        "Please paste this information in the survey."
+                    )
+                else:
+                    raise Exception("Clipboard is empty")
+                    
+            except Exception as clip_error:
+                # If clipboard fails, show the data in a message box
+                messagebox.showwarning("Clipboard Error",
+                    "Could not copy to clipboard. Please manually copy this information:\n\n" +
+                    json_output
+                )
         else:
             messagebox.showerror("Error", "Failed to collect system information.")
     except Exception as e:
