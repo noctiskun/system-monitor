@@ -1,3 +1,5 @@
+import tkinter as tk
+from tkinter import messagebox
 import platform
 import psutil
 import wmi
@@ -5,16 +7,16 @@ import screeninfo
 from typing import Dict, List
 import GPUtil
 import json
-from win32api import EnumDisplayDevices, EnumDisplaySettings, GetVersionEx
+from win32api import EnumDisplayDevices, EnumDisplaySettings
 from win32con import ENUM_CURRENT_SETTINGS
 
 def get_windows_version():
     try:
         w = wmi.WMI()
         os_info = w.Win32_OperatingSystem()[0]
-        return os_info.Caption    # This will return something like "Microsoft Windows 11 Pro"
+        return os_info.Caption
     except:
-        return platform.version()  # Fallback to platform.version()
+        return platform.version()
 
 def get_refresh_rates_win32():
     refresh_rates = {}
@@ -57,11 +59,9 @@ def get_system_info() -> Dict:
         "gpu": []
     }
 
-    # Get refresh rates using Win32 API
     if platform.system() == 'Windows':
         refresh_rates = get_refresh_rates_win32()
     
-    # Get display information using screeninfo
     try:
         monitors = screeninfo.get_monitors()
         for monitor in monitors:
@@ -72,7 +72,6 @@ def get_system_info() -> Dict:
                 "is_primary": monitor.is_primary,
             }
             
-            # Add refresh rate from Win32 API if available
             if platform.system() == 'Windows' and monitor.name in refresh_rates:
                 display_info["refresh_rate"] = f"{refresh_rates[monitor.name]['refresh_rate']}Hz"
                 display_info["device_name"] = refresh_rates[monitor.name]['device_name']
@@ -81,9 +80,7 @@ def get_system_info() -> Dict:
     except Exception as e:
         info["displays"].append({"error": str(e)})
 
-    # Get GPU information using both GPUtil and WMI for redundancy
     try:
-        # Using GPUtil
         gpus = GPUtil.getGPUs()
         for gpu in gpus:
             gpu_info = {
@@ -96,12 +93,10 @@ def get_system_info() -> Dict:
             }
             info["gpu"].append(gpu_info)
         
-        # Using WMI as backup and for additional GPUs
         if platform.system() == 'Windows':
             w = wmi.WMI()
             wmi_gpus = w.Win32_VideoController()
             
-            # Check if we found any GPUs not detected by GPUtil
             existing_gpu_names = {gpu["name"] for gpu in info["gpu"]}
             for wmi_gpu in wmi_gpus:
                 if wmi_gpu.Name not in existing_gpu_names:
@@ -116,7 +111,6 @@ def get_system_info() -> Dict:
     except Exception as e:
         info["gpu"].append({"error": str(e)})
 
-    # Additional Windows-specific display information using WMI
     if platform.system() == 'Windows':
         try:
             w = wmi.WMI()
@@ -134,11 +128,34 @@ def get_system_info() -> Dict:
     return info
 
 def main():
+    # Create a simple GUI window
+    root = tk.Tk()
+    root.withdraw()  # Hide the main window
+
     try:
+        # Show starting message
+        messagebox.showinfo("System Info Collector", "Starting to collect system information...")
+        
+        # Get system information
         system_info = get_system_info()
-        print(json.dumps(system_info, indent=2))
+        
+        if system_info:
+            # Convert to JSON and copy to clipboard
+            json_output = json.dumps(system_info, indent=2)
+            root.clipboard_clear()
+            root.clipboard_append(json_output)
+            
+            # Show success message with the information
+            messagebox.showinfo("Success", 
+                "System information has been collected and copied to clipboard.\n\n" +
+                "Please paste this information in the survey."
+            )
+        else:
+            messagebox.showerror("Error", "Failed to collect system information.")
     except Exception as e:
-        print(f"Error collecting system information: {str(e)}")
+        messagebox.showerror("Error", f"An error occurred: {str(e)}")
+    finally:
+        root.destroy()
 
 if __name__ == "__main__":
     main()
